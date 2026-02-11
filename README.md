@@ -19,6 +19,31 @@ docker-compose up --build
 
 ---
 
+| Пункт | Где в init.sql                                               | Строки   |
+| ----- | ------------------------------------------------------------ | -------- |
+| 2.1   | `CREATE VIEW client_order_totals`                            | ~120-130 |
+| 2.2   | `CREATE VIEW category_child_count`                           | ~132-142 |
+| 2.3.1 | `CREATE VIEW top_products_last_month`                        | ~144-180 |
+| 2.3.2 | `CREATE MATERIALIZED VIEW mv_top_products_monthly` + индексы | ~182-210 |
+
+-- 2.1 Сумма по клиентам
+SELECT c.name, COALESCE(SUM(oi.quantity * oi.price), 0) 
+FROM clients c 
+LEFT JOIN orders o ON c.id = o.client_id 
+LEFT JOIN order_items oi ON o.id = oi.order_id 
+GROUP BY c.id, c.name;
+
+-- 2.2 Дочерние категории
+SELECT c.id, c.name, COUNT(child.id) 
+FROM categories c 
+LEFT JOIN categories child ON child.parent_id = c.id 
+GROUP BY c.id, c.name;
+
+-- 2.3.1 Топ-5 товаров (через RECURSIVE CTE)
+-- 2.3.2 Оптимизация: Materialized View + индексы
+
+---
+
 # Проверка работы API
 curl http://localhost:8000/api/v1/health
 
@@ -48,3 +73,4 @@ curl -X POST http://localhost:8000/api/v1/orders/1/items \
 curl -X POST http://localhost:8000/api/v1/orders/1/items \
   -H "Content-Type: application/json" \
   -d '{"product_id": 1, "quantity": 2}'
+
